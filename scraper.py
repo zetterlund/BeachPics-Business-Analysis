@@ -13,17 +13,13 @@ from selenium.webdriver.chrome.options import Options
 
 
 # Set up logging
-logger = logging.getLogger('Beach_Pics_Logger')
-logger.setLevel(logging.DEBUG)
 file_handler = logging.FileHandler('debug.log')
-file_handler.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.INFO)
-logging_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(logging_formatter)
-stream_handler.setFormatter(logging_formatter)
-logger.addHandler(file_handler)
-logger.addHandler(stream_handler)
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s:%(name)s:%(levelname)s:%(threadName)s:%(funcName)s - %(message)s',
+                    handlers=(file_handler, stream_handler)
+                    )
 
 
 # Initialize random seeds
@@ -32,7 +28,7 @@ md5 = hashlib.md5()
 
 
 # Set global constants
-NAME_COUNT = 20
+NAME_COUNT = 50
 PROFILE_IMAGES_COUNT = 100
 NUM_THREADS = 3
 
@@ -43,22 +39,22 @@ def populate_db_with_surnames():
     with open('name_list.json', 'r') as the_file:
         name_list = json.load(the_file)
     name_list = [str(x).lower() for x in name_list]
-    logger.info("{} names found in name_list".format(len(name_list)))
+    logging.info("{} names found in name_list".format(len(name_list)))
 
     # Add blank document to surname collection for each name in local list that is not in the database
     names_added = 0
     for name in name_list:
         p = db.surnames.find_one({'name': name})
         if not p:
-            logger.info("Name {} not found in database; now inserting.".format(name))
+            logging.info("Name {} not found in database; now inserting.".format(name))
             db.surnames.insert_one({'name': name, 'scraped': False})
             names_added += 1
             if names_added >= NAME_COUNT:
                 break
         else:
-            logger.info("Name {} already found in database; skipping.".format(name))
+            logging.info("Name {} already found in database; skipping.".format(name))
 
-    logger.info("Finished adding names.  {} names added in this script run.".format(names_added))
+    logging.info("Finished adding names.  {} names added in this script run.".format(names_added))
 
 
 
@@ -72,7 +68,7 @@ def scrape_surname_page(driver, surname_document):
         time.sleep(5)
 
         family_list = driver.find_elements_by_xpath('//div[@class="sm-search-resultset"]/ul[contains(@class, "sm-search-tiles")]/li')
-        logger.info("{} families found for surname {}.".format(len(family_list), surname_document['name']))
+        logging.info("{} families found for surname {}.".format(len(family_list), surname_document['name']))
 
         for i, family in enumerate(family_list):
             try:
@@ -112,10 +108,10 @@ def scrape_surname_page(driver, surname_document):
                     db.profile_images.insert_one({'_id': p['_id'], 'images': []})
 
             except Exception as e:
-                logger.error('Error encountered in "scrape_surname_page" function: {}'.format(e))
+                logging.error('Error encountered in "scrape_surname_page" function: {}'.format(e))
 
     except Exception as e:
-        logger.error('Error encountered in top-level try/except of "scrape_surname_page" function for family "{}"": {}'.format(surname_document['name'], e))
+        logging.error('Error encountered in top-level try/except of "scrape_surname_page" function for family "{}"": {}'.format(surname_document['name'], e))
 
     finally:
         with mongo_lock:
@@ -165,7 +161,7 @@ def get_profile_images_info(driver, p):
             db.profile_images.update_one({'_id': p['_id']}, {'$set': {'images': r['Images']}})
 
     except Exception as e:
-        logger.error('Encountered exception in "get_profile_images_info" for ID {}: {}'.format(p['_id'], e))
+        logging.error('Encountered exception in "get_profile_images_info" for ID {}: {}'.format(p['_id'], e))
 
     finally:
         with mongo_lock:
@@ -209,7 +205,7 @@ def download_profile_images(driver, p):
                         time.sleep(0.5)
 
                     except Exception as e:
-                        logger.error("Ran into error downloading photo for ImageID {} in size {}: {}".format(image['ImageID'], size, e))
+                        logging.error("Ran into error downloading photo for ImageID {} in size {}: {}".format(image['ImageID'], size, e))
 
                 # Mark image as downloaded and overwrite existing entry in 'images' list
                 image['downloaded'] = True
@@ -220,12 +216,12 @@ def download_profile_images(driver, p):
                     break
 
             except Exception as e:
-                logger.error('Encountered error while downloading image ID {}: {}'.format(image['ImageID'], e))
+                logging.error('Encountered error while downloading image ID {}: {}'.format(image['ImageID'], e))
 
-        logger.info("{} finished gathering images for ID {}.  Retrieved {} images.".format(threading.current_thread().name, p['_id'], image_download_count))
+        logging.info("Finished gathering images for ID {}.  Retrieved {} images.".format(p['_id'], image_download_count))
 
     except Exception as e:
-        logger.error('Encountered exception in top-level try/except of "download_profile_images" for ID {}: {}'.format(p['_id'], e))
+        logging.error('Encountered exception in top-level try/except of "download_profile_images" for ID {}: {}'.format(p['_id'], e))
 
     finally:
         with mongo_lock:
@@ -236,7 +232,7 @@ def download_profile_images(driver, p):
 
 def run_scraper():
 
-    logger.info('Beginning "run_scraper" for thread: {}'.format(threading.current_thread().name))
+    logging.info('Beginning "run_scraper" function.')
 
     # Instantiate Selenium webdriver
     chrome_options = Options()
@@ -253,7 +249,7 @@ def run_scraper():
                 if not p:
                     break
                 db.surnames.update_one({'_id': p['_id']}, {'$set': {'scraped': 'working'}}, upsert=False)
-            logger.info("{}: Now attempting to scrape surname page for name {}".format(threading.current_thread().name, p['name']))
+            logging.info("Now attempting to scrape surname page for name {}".format(p['name']))
             scrape_surname_page(driver, p)
 
         # Get profile images info for each profile
@@ -263,7 +259,7 @@ def run_scraper():
                 if not p:
                     break
                 db.profiles.update_one({'_id': p['_id']}, {'$set': {'photo_info_scraped': 'working'}}, upsert=False)
-            logger.info("{}: Now attempting to get profile images info for profile ID {}".format(threading.current_thread().name, p['_id']))
+            logging.info("Now attempting to get profile images info for profile ID {}".format(p['_id']))
             get_profile_images_info(driver, p)
 
         # Download profile images for each profile
@@ -273,13 +269,13 @@ def run_scraper():
                 if not p:
                     break
                 db.profiles.update_one({'_id': p['_id']}, {'$set': {'photos_scraped': 'working'}}, upsert=False)
-            logger.info("{}: Now attempting to download profile images for profile ID: {}".format(threading.current_thread().name, p['_id']))
+            logging.info("Now attempting to download profile images for profile ID: {}".format(p['_id']))
             download_profile_images(driver, p)
 
-        logger.info('Finished thread: {}'.format(threading.current_thread().name))
+        logging.info('Finished thread: {}'.format(threading.current_thread().name))
 
     except Exception as e:
-        logger.error('Failure in "run_scraper" function!  Thread: {}  Error: {}'.format(threading.current_thread().name, e))
+        logging.error('Failure in "run_scraper" function!  Thread: {}  Error: {}'.format(threading.current_thread().name, e))
 
     finally:
         driver.close()
@@ -316,11 +312,11 @@ if __name__ == '__main__':
             x.join()
 
         # All threads have now completely executed
-        logger.info("Done!")
+        logging.info("Done!")
 
 
     except Exception as e:
-        logger.error("Top-level error found: {}".format(e))
+        logging.error("Top-level error found: {}".format(e))
 
     finally:
-        logger.info("FINISHED WITH THIS RUN.\n\n\n\n\n")
+        logging.info("FINISHED WITH THIS RUN.\n\n\n\n\n")
