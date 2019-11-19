@@ -1,5 +1,7 @@
 # Multithreaded-Scraper
 
+![sample_photo.jpg](https://github.com/zetterlund/Multithreaded-Scraper/blob/master/sample_photo.jpg?raw=true)
+
 This is a scraper I built to download images from a photography website, to be used for training a neural network to do some computer vision tasks.
 
 It uses multiple threads to each run instances of Selenium with ChromeDriver, which download images and save data to a MongoDB database.
