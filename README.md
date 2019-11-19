@@ -7,4 +7,4 @@ This is a Business Analysis project, analyzing a professional beach photography 
 The project has two components:
 
 - **[The Scraper](./scraper/)**
-- **[The Data Analysis Notebook](./analysis/Data Analysis Notebook.ipynb)**
+- **[The Data Analysis Notebook](https://github.com/zetterlund/Multithreaded-Scraper/blob/master/analysis/Data%20Analysis%20Notebook.ipynb)**
