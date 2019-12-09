@@ -1,4 +1,4 @@
-# Multithreaded-Scraper
+# BeachPics-Business-Analysis
 
 ## Scraper Overview
 

@@ -1,4 +1,4 @@
-# Multithreaded-Scraper
+# BeachPics-Business-Analysis
 
 ![sample_photo.jpg](./analysis/sample_photo.jpg?raw=true)
 
